@@ -1,0 +1,90 @@
+* cascode test
+.option post
+.option precise
+
+.param wn_inv='1u'
+.param wp_reset='5u'
+.param wn_par='1u'
+
+*razao entre wp e wn
+.param wp_wn='2.7'
+
+* X1 = Wn da fonte de corrente
+* COIn_X2 = Wn do par diferencial
+* X3 = Wn dos inversores
+.param COIn_X1='4'
+.param COIn_x2='15'
+.pAraM COIn_X3='5'
+.param L_val='0.35u'
+
+.param D1='0.85u'
+
+mi 1 latch 0 0          MODN L='L_val' W='COIn_X1*1u' AS='D1*COIn_X1*1u' AD='D1*COIn_X1*1u' PS='2*D1+(COIn_X1*1u)' PD='2*D1+(COIn_X1*1u)'
+m1a 2a vip 1 0          MODN L='L_val' W='COIn_X2*wn_par' AS='D1*COIn_X2*wn_par' AD='D1*COIn_X2*wn_par' PS='2*D1+(COIn_X2*wn_par)' PD='2*D1+(COIn_X2*wn_par)'
+m1b 2b vin 1 0          MODN L='L_val' W='COIn_X2*wn_par' AS='D1*COIn_X2*wn_par' AD='D1*COIn_X2*wn_par' PS='2*D1+(COIn_X2*wn_par)' PD='2*D1+(COIn_X2*wn_par)'
+m2a 3a 3b 2a 0          MODN L='L_val' W='COIn_X3*wn_inv' AS='D1*COIn_X3*wn_inv' AD='D1*COIn_X3*wn_inv' PS='2*D1+(COIn_X3*wn_inv)' PD='2*D1+(COIn_X3*wn_inv)'
+m2b 3b 3a 2b 0          MODN L='L_val' W='COIn_X3*wn_inv' AS='D1*COIn_X3*wn_inv' AD='D1*COIn_X3*wn_inv' PS='2*D1+(COIn_X3*wn_inv)' PD='2*D1+(COIn_X3*wn_inv)'
+m3a 3a 3b Vdd vdd       MODP L='L_val' W='COIn_X3*wn_inv*wp_wn' AS='D1*COIn_X3*wn_inv*wp_wn' AD='D1*COIn_X3*wn_inv*wp_wn' PS='2*D1+(COIn_X3*wn_inv*wp_wn)' PD='2*D1+(COIn_X3*wn_inv*wp_wn)'
+m3b 3b 3a Vdd Vdd       MODP L='L_val' W='COIn_X3*wn_inv*wp_wn' AS='D1*COIn_X3*wn_inv*wp_wn' AD='D1*COIn_X3*wn_inv*wp_wn' PS='2*D1+(COIn_X3*wn_inv*wp_wn)' PD='2*D1+(COIn_X3*wn_inv*wp_wn)'
+m4a 3a latch Vdd vdd    MODP L='L_val' W='wp_reset' AS='D1*wp_reset' AD='D1*wp_reset' PS='2*D1+wp_reset' PD='2*D1+wp_reset'
+m4b 3b latch Vdd Vdd    MODP L='L_val' W='wp_reset' AS='D1*wp_reset' AD='D1*wp_reset' PS='2*D1+wp_reset' PD='2*D1+wp_reset'
+
+Cl outp outn 50f
+
+.connect 3a outn
+.connect 3b outp
+
+.param T1='20n'
+
+Vdd vdd   0  3V
+Vlatch  latch   0  pulse(0 3 1n 1ps 1ps '0.9*T1'  T1)
+
+.param Vcm='1.5'
+.param dif='1n'
+Vin  vin  0   'Vcm-dif'
+Vip  vip  0   'Vcm+dif'
+
+.ic V(2a)=3
+.ic V(2b)=3
+
+.param num_pontos='10000'
+.tran  1u T1 0 'T1/num_pontos' sweep dif dec 8 1u 1
+*sweep Vcm incr 0.1 0 3
+*sweep dif dec 8 1u 1
+*sweep wp_reset incr 1u 1u 30u
+*sweep X1 incr 1 1 30
+*sweep wn_par incr 0.1u 5u 20u
+*sweep wn incr 1u 1u 10u
+
+*.extract tran label=coef_exp log(abs(V(outp)-V(outn)))
+*.defwave tran coef1='log(abs(V(outp)-V(outn))+1f)'
+*.defwave tran coef1='log(abs(V(outp)-1.5)+1f)'
+*.extract tran label=tau yval(deriv(w(coef1)), 2n)
+.defwave tran saida_dif='abs(V(outp)-V(outn))'
+
+.param delta=390m
+*.meas tran v_meta find v(3a) at 4.5n
+*.meas tran dif W('V(outp)-V(outn)')
+
+*.meas tran coef derivate w(coef1) at 2n
+*.meas tran coef derivative W('log(abs(V(outp)-V(outn)))') at 2n
+*.meas tran 
+*.meas tran xx derivate w('abs(v(outp)-v(outn))') when val= '0.1'
+
+.meas tran tempo trig V(latch) val=3 targ W('abs(V(outp)-V(outn))') val='2*delta'
+.meas tran derivada derivate w(saida_dif) when w(saida_dif)=0.1
+.meas tran v_1n find w(saida_dif) at 2n
+.meas tran alfa param='v_1n/(exp(1n/tau)-1)'
+
+.meas tran tempo_reset trig V(latch) val=1.5 fall=1 targ V(3a) rise=1 val=1.5
+
+.meas tran pot avg power
+.meas tran tau param='0.1/derivada'
+.meas tran tempo_estimado param='log((2*delta+alfa)/alfa)*tau'
+.meas tran tempo_para_iniciar trig V(latch) val=3 targ w(saida_dif) val='2*dif'
+
+.probe tran V(2a) v(2b) V(outn) v(outp) v(latch) w(saida_dif)
+.plot tran w(saida_dif)
+
+.include Model35
+.end
