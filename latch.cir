@@ -48,7 +48,8 @@ Vip  vip  0   'Vcm+dif'
 .ic V(2b)=3
 
 .param num_pontos='10000'
-.tran  1u T1 0 'T1/num_pontos' sweep dif dec 8 1u 1
+.tran  1u T1 0 'T1/num_pontos' 
+*sweep dif dec 8 1u 1
 *sweep Vcm incr 0.1 0 3
 *sweep dif dec 8 1u 1
 *sweep wp_reset incr 1u 1u 30u
@@ -71,15 +72,15 @@ Vip  vip  0   'Vcm+dif'
 *.meas tran 
 *.meas tran xx derivate w('abs(v(outp)-v(outn))') when val= '0.1'
 
-.meas tran tempo trig V(latch) val=3 targ W('abs(V(outp)-V(outn))') val='2*delta'
+.meas tran COOut_tempo trig V(latch) val=3 targ W('abs(V(outp)-V(outn))') val='2*delta'
 .meas tran derivada derivate w(saida_dif) when w(saida_dif)=0.1
 .meas tran v_1n find w(saida_dif) at 2n
 .meas tran alfa param='v_1n/(exp(1n/tau)-1)'
 
 .meas tran tempo_reset trig V(latch) val=1.5 fall=1 targ V(3a) rise=1 val=1.5
 
-.meas tran pot avg power
-.meas tran tau param='0.1/derivada'
+.meas tran COOut_pot avg power
+.meas tran COOut_tau param='0.1/derivada'
 .meas tran tempo_estimado param='log((2*delta+alfa)/alfa)*tau'
 .meas tran tempo_para_iniciar trig V(latch) val=3 targ w(saida_dif) val='2*dif'
 

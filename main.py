@@ -1,4 +1,3 @@
-import os
+# TODO graphical interface
 
-p = os.popen('dir')
-print(p.read())
+# TODO simulation + GA integration
