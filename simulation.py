@@ -35,7 +35,6 @@ class SimulationExtractor:
         result = SimulationExtractor.get_sim_results(out)
         results[index] = result
 
-    # TODO test method "get_all_results"
     def get_all_results(self):
         results = [None] * len(self.file_list)
         threads = []
