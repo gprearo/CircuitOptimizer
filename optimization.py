@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 from simulation import SimulationExtractor
 from netlist import CircuitEditor
 
@@ -42,6 +43,7 @@ class GeneticAlgorithm:
         self.outputs_info = outputs_info
         self.fitness_values = []
         self.population = []
+        self.best_members = []
 
     def init_pop(self):
         for i in range(self.pop_count):
@@ -79,6 +81,7 @@ class GeneticAlgorithm:
         for key, value in member.outputs.items():
             fitness_val = fitness_val + GeneticAlgorithm.score(value, self.outputs_info[key])
 
+        fitness_val = 1/fitness_val if fitness_val != 0 else float('inf')
         member.fitness = fitness_val
         return fitness_val
 
@@ -87,6 +90,7 @@ class GeneticAlgorithm:
         for m in self.population:
             self.fitness_values.append(self.fitness(m))
         self.fitness_values = np.array(self.fitness_values)
+        self.best_members.append(copy.copy(self.population[int(np.argmax(self.fitness_values))]))
 
     def print_pop(self):
         for m in self.population:
@@ -94,7 +98,7 @@ class GeneticAlgorithm:
 
     # TODO crossover function
     def crossover(self):
-        return self.population[np.argmax(self.fitness_values)].to_string()
+        return self.population[int(np.argmax(self.fitness_values))]
 
     # TODO mutation function
 
@@ -110,4 +114,4 @@ if __name__ == "__main__":
     ga.calculate_all_fitness()
     print(ga.fitness_values)
     print(ga.crossover())
-    print(ga.population)
+    print(ga.best_members[0].outputs)
