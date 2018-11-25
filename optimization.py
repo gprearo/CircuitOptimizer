@@ -21,7 +21,7 @@ class Member:
             self.inputs[key] = np.random.uniform(value['inf_limit'], value['sup_limit'])
 
         for key, value in self.outputs_info.items():
-            self.outputs[key] = np.random.uniform(0, 10)
+            self.outputs[key] = 0.0
 
     def to_string(self):
         s = "Inputs:\n"
@@ -31,6 +31,8 @@ class Member:
         s = s + "\nOutputs:\n"
         for key, value in self.outputs.items():
             s = s + key + ":" + str(value) + "; "
+
+        s = s + "\nFitness: {}\n".format(self.fitness)
 
         return s
 
@@ -45,6 +47,7 @@ class GeneticAlgorithm:
         self.fitness_values = []
         self.population = []
         self.best_members = []
+        self.best_fitness = []
 
     def init_pop(self):
         for i in range(self.pop_count):
@@ -52,15 +55,12 @@ class GeneticAlgorithm:
             self.population.append(member)
 
     def evaluation(self):
-        #ce = CircuitEditor("latch.cir")
-        #file_lst = ce.write_all_circuits([m.inputs for m in self.population])
-        #se = SimulationExtractor(file_lst)
-        #result_lst = se.get_all_results()
+        ce = CircuitEditor("latch.cir")
+        file_lst = ce.write_all_circuits([m.inputs for m in self.population])
+        se = SimulationExtractor(file_lst)
+        result_lst = se.get_all_results()
         for i in range(self.pop_count):
-            tempo = i + 1
-            potencia = i + 1
-            aux = {'COOUT_TEMPO': tempo, 'COOUT_POT': potencia}
-            self.population[i].outputs = aux #result_lst[i]
+            self.population[i].outputs = result_lst[i]
 
     @staticmethod
     def score(val, score_curve):
@@ -95,6 +95,7 @@ class GeneticAlgorithm:
             self.fitness_values.append(self.fitness(m))
         self.fitness_values = np.array(self.fitness_values)
         self.best_members.append(copy.copy(self.population[int(np.argmax(self.fitness_values))]))
+        self.best_fitness.append(np.max(self.fitness_values))
 
     def print_pop(self):
         for m in self.population:
@@ -110,7 +111,7 @@ class GeneticAlgorithm:
 
     # TODO mutation function
     def mutation(self):
-        mutation_rate = 1/10
+        mutation_rate = 0.15
         best_member = (np.argmax(self.fitness_values))
         for i in range(self.pop_count):
             if i == best_member:
@@ -120,18 +121,19 @@ class GeneticAlgorithm:
                 for key, value in self.population[i].inputs.items():
                     if random.uniform(0, 100) < mutation_chance:
                         if random.uniform(0, 100) < 50:
-                            if (self.population[i].inputs[key] + (self.population[i].inputs[key] * mutation_rate)) < self.population[i].inputs_info[key]['sup_limit']:
-                                self.population[i].inputs[key] = self.population[i].inputs[key] + (self.population[i].inputs[key] * mutation_rate)
+                            if (self.population[i].inputs[key]*(1.0 + mutation_rate)) < self.population[i].inputs_info[key]['sup_limit']:
+                                self.population[i].inputs[key] = self.population[i].inputs[key] * (1.0 + mutation_rate)
                             else:
-                                self.population[i].inputs[key] = self.population[i].inputs[key] - (self.population[i].inputs[key] * mutation_rate)
+                                self.population[i].inputs[key] = self.population[i].inputs[key] * (1.0 - mutation_rate)
                         else:
-                            if (self.population[i].inputs[key] + (self.population[i].inputs[key] * mutation_rate)) < self.population[i].inputs_info[key]['inf_limit']:
-                                self.population[i].inputs[key] = self.population[i].inputs[key] - (self.population[i].inputs[key] * mutation_rate)
+                            if (self.population[i].inputs[key]*(1.0 - mutation_rate)) > self.population[i].inputs_info[key]['inf_limit']:
+                                self.population[i].inputs[key] = self.population[i].inputs[key] * (1.0 - mutation_rate)
                             else:
-                                self.population[i].inputs[key] = self.population[i].inputs[key] + (self.population[i].inputs[key] * mutation_rate)
+                                self.population[i].inputs[key] = self.population[i].inputs[key] * (1.0 + mutation_rate)
+
 
 if __name__ == "__main__":
-    ga = GeneticAlgorithm(6, 10, {'COIN_X1': {'sup_limit': 50, 'inf_limit': 1},
+    ga = GeneticAlgorithm(3, 10, {'COIN_X1': {'sup_limit': 50, 'inf_limit': 1},
                                   'COIN_X2': {'sup_limit': 50, 'inf_limit': 1},
                                   'COIN_X3': {'sup_limit': 50, 'inf_limit': 1}},
                           {'COOUT_TEMPO': {'type': 'single-slope', 'slope': 3e9},
@@ -141,5 +143,7 @@ if __name__ == "__main__":
     ga.calculate_all_fitness()
     print(ga.fitness_values)
     print(ga.crossover())
+    ga.print_pop()
     print(ga.mutation())
+    ga.print_pop()
     print(ga.best_members[0].outputs)

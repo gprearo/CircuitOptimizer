@@ -1,7 +1,7 @@
 import subprocess
 import os
 import re
-from threading import Thread, Lock
+from threading import Thread, Lock, BoundedSemaphore
 
 
 class SimulationExtractor:
@@ -10,7 +10,8 @@ class SimulationExtractor:
 
     def __init__(self, file_list):
         self.file_list = file_list
-        self.lock = Lock()
+        self.lock_sim = BoundedSemaphore(value=3)
+        self.lock_var = Lock()
 
     @staticmethod
     def simulate(file):
@@ -36,14 +37,20 @@ class SimulationExtractor:
         return dic
 
     def thread_sim(self, file, results, index):
-        self.lock.acquire()
-        out = SimulationExtractor.simulate(file)
-        self.lock.release()
+        self.lock_sim.acquire()
+        error = True
+        while error:
+            try:
+                out = SimulationExtractor.simulate(file)
+                error = False
+            except ValueError:
+                error = True
+        self.lock_sim.release()
         result = SimulationExtractor.get_sim_results(out)
 
-        self.lock.acquire()
+        self.lock_var.acquire()
         results[index] = result
-        self.lock.release()
+        self.lock_var.release()
 
     def get_all_results(self):
         results = [None] * len(self.file_list)
