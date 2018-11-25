@@ -41,6 +41,8 @@ class CircuitEditor:
             threads.append(t)
             t.start()
 
+        for t in threads:
+            t.join()
         # Return the name of all files generated
         return files
 
@@ -52,7 +54,7 @@ class CircuitEditor:
 def main():
     ce = CircuitEditor("latch.cir")
     params = ce.get_params()
-    num_member = 10
+    num_member = 5
 
     population = []
     for i in range(num_member):

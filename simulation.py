@@ -1,7 +1,7 @@
 import subprocess
 import os
 import re
-from threading import Thread
+from threading import Thread, Lock
 
 
 class SimulationExtractor:
@@ -10,6 +10,7 @@ class SimulationExtractor:
 
     def __init__(self, file_list):
         self.file_list = file_list
+        self.lock = Lock()
 
     @staticmethod
     def simulate(file):
@@ -26,14 +27,23 @@ class SimulationExtractor:
     @staticmethod
     def get_sim_results(sim_output):
         find_term = "(" + SimulationExtractor.output_token + "[^\s]+)\s*=\s*([^\s]+)"
-        result = re.findall(find_term, sim_output, re.IGNORECASE)
-        return result
+        results = re.findall(find_term, sim_output, re.IGNORECASE)
 
-    @staticmethod
-    def thread_sim(file, results, index):
+        dic = dict()
+        for result in results:
+            dic[result[0]] = float(result[1])
+
+        return dic
+
+    def thread_sim(self, file, results, index):
+        self.lock.acquire()
         out = SimulationExtractor.simulate(file)
+        self.lock.release()
         result = SimulationExtractor.get_sim_results(out)
+
+        self.lock.acquire()
         results[index] = result
+        self.lock.release()
 
     def get_all_results(self):
         results = [None] * len(self.file_list)
@@ -41,7 +51,7 @@ class SimulationExtractor:
 
         i = 0
         for file in self.file_list:
-            t = Thread(target=SimulationExtractor.thread_sim, args=(file, results, i))
+            t = Thread(target=SimulationExtractor.thread_sim, args=(self, file, results, i))
             t.start()
             threads.append(t)
             i = i + 1
@@ -59,14 +69,9 @@ def main():
     file_out.write(sim_out)
     file_out.close()
 
-    results = SimulationExtractor.get_sim_results(sim_out)
-    result_list = []
-    for result in results:
-        dic = dict()
-        dic[result[0]] = result[1]
-        result_list.append(dic)
+    result = SimulationExtractor.get_sim_results(sim_out)
 
-    print(result_list)
+    print(result)
 
 
 if __name__ == "__main__":
